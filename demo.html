@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insurance Listening — 5 Layer Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#1e293b;display:flex;min-height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{width:232px;min-height:100vh;background:#0f172a;color:#f8fafc;padding:20px 12px;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+.logo{padding:4px 8px 16px;border-bottom:1px solid #1e293b;margin-bottom:8px}
+.logo-name{font-size:14px;font-weight:700;color:#60a5fa;letter-spacing:-.02em}
+.logo-sub{font-size:11px;color:#475569;margin-top:2px}
+.nav-item{display:flex;align-items:flex-start;gap:10px;padding:10px 10px;border-radius:8px;cursor:pointer;transition:background .15s;user-select:none}
+.nav-item:hover{background:#1e293b}
+.nav-item.active{background:#1e3a5f}
+.nav-num{width:22px;height:22px;border-radius:6px;background:#1e293b;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#60a5fa;flex-shrink:0;margin-top:1px}
+.nav-item.active .nav-num{background:#2563eb;color:#fff}
+.nav-text{}
+.nav-title{font-size:13px;font-weight:600;color:#e2e8f0;line-height:1.3}
+.nav-item.active .nav-title{color:#fff}
+.nav-desc{font-size:11px;color:#475569;margin-top:2px;line-height:1.4}
+.nav-item.active .nav-desc{color:#93c5fd}
+.badge-new{display:inline-block;background:#854d0e;color:#fef3c7;font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:5px;vertical-align:middle}
+.sidebar-footer{margin-top:auto;padding-top:16px;border-top:1px solid #1e293b;font-size:11px;color:#334155;padding:16px 8px 0}
+.filter-row{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.filter-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#475569}
+.tvv-pills{display:flex;border-radius:6px;overflow:hidden;border:1px solid #334155}
+.tvv-pill{flex:1;padding:5px 0;font-size:10px;text-align:center;cursor:pointer;background:transparent;color:#64748b;border:none;transition:background .15s}
+.tvv-pill.active{background:#2563eb;color:#fff}
+
+/* ── Main ── */
+.main{margin-left:232px;flex:1;padding:28px 32px;min-width:0}
+.layer{display:none}
+.layer.active{display:block}
+.layer-header{margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #e2e8f0}
+.layer-title{font-size:20px;font-weight:700;color:#0f172a}
+.layer-sub{font-size:13px;color:#64748b;margin-top:4px}
+
+/* ── KPI cards ── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.kpi{background:#fff;border-radius:12px;padding:18px 20px;border:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b}
+.kpi-value{font-size:32px;font-weight:800;color:#0f172a;margin:6px 0 3px;line-height:1}
+.kpi-delta{font-size:12px;display:flex;align-items:center;gap:3px}
+.up{color:#16a34a}.down{color:#dc2626}.flat{color:#94a3b8}
+.bad-up{color:#dc2626}.bad-down{color:#16a34a}
+
+/* ── Chart cards ── */
+.chart-card{background:#fff;border-radius:12px;padding:20px;border:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.chart-title{font-size:13px;font-weight:600;color:#0f172a;margin-bottom:14px}
+.chart-sub{font-size:11px;color:#94a3b8;font-weight:400;margin-left:6px}
+.grid-2{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:18px}
+.grid-eq{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.grid-eq3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px}
+.mb18{margin-bottom:18px}
+
+/* ── Tables ── */
+.table-card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden;margin-bottom:18px}
+.table-head{padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 14px;background:#f8fafc;color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0}
+td{padding:10px 14px;border-bottom:1px solid #f8fafc;vertical-align:middle;line-height:1.5}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}
+.b-high{background:#fee2e2;color:#dc2626}
+.b-medium{background:#fef3c7;color:#b45309}
+.b-low{background:#fef9c3;color:#92400e}
+.b-new{background:#dbeafe;color:#1d4ed8}
+.b-growth{background:#dcfce7;color:#15803d}
+.b-tvv{background:#fef3c7;color:#92400e}
+.b-seeding{background:#fce7f3;color:#9d174d}
+.sent-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px;min-width:80px}
+.sent-bar span{display:block;border-radius:1px}
+
+/* ── Comment cards (L4) ── */
+.comment-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+.comment-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px}
+.comment-meta{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.comment-text{font-size:13px;color:#374151;line-height:1.6}
+.comment-footer{margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.comment-tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;background:#eff6ff;color:#1d4ed8}
+.comment-tag.neg{background:#fef2f2;color:#dc2626}
+.comment-tag.pos{background:#f0fdf4;color:#16a34a}
+.comment-tag.neu{background:#f8fafc;color:#64748b}
+
+/* ── Campaign cards (L5) ── */
+.campaign-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.campaign-card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.campaign-brand{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:6px}
+.campaign-name{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:12px}
+.campaign-stat{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid #f1f5f9}
+.campaign-stat-label{font-size:11px;color:#64748b}
+.campaign-stat-val{font-size:13px;font-weight:700;color:#0f172a}
+.lift-pos{color:#16a34a}.lift-neg{color:#dc2626}
+
+.empty{text-align:center;padding:40px;color:#94a3b8;font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-name">Insurance Listening</div>
+    <div class="logo-sub">Social Intelligence · Demo</div>
+  </div>
+
+  <div class="nav-item active" onclick="showLayer('l1',this)">
+    <div class="nav-num">1</div>
+    <div class="nav-text">
+      <div class="nav-title">Overview</div>
+      <div class="nav-desc">Pulse · sentiment · metrics</div>
+    </div>
+  </div>
+  <div class="nav-item" onclick="showLayer('l2',this)">
+    <div class="nav-num">2</div>
+    <div class="nav-text">
+      <div class="nav-title">Topics & Trends</div>
+      <div class="nav-desc">Chủ đề · emerging · threads</div>
+    </div>
+  </div>
+  <div class="nav-item" onclick="showLayer('l3',this)">
+    <div class="nav-num">3</div>
+    <div class="nav-text">
+      <div class="nav-title">Brand Intelligence</div>
+      <div class="nav-desc">Share of Voice · cạnh tranh</div>
+    </div>
+  </div>
+  <div class="nav-item" onclick="showLayer('l4',this)">
+    <div class="nav-num">4</div>
+    <div class="nav-text">
+      <div class="nav-title">Deep Insight</div>
+      <div class="nav-desc">Pain points · comment sâu</div>
+    </div>
+  </div>
+  <div class="nav-item" onclick="showLayer('l5',this)">
+    <div class="nav-num">5</div>
+    <div class="nav-text">
+      <div class="nav-title">Campaign Impact<span class="badge-new">MỚI</span></div>
+      <div class="nav-desc">Đo hiệu quả · trước/sau</div>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="filter-label">Bộ lọc</div>
+    <div style="margin-top:8px">
+      <div class="filter-label" style="margin-bottom:5px">TVV</div>
+      <div class="tvv-pills">
+        <button class="tvv-pill active">Tất cả</button>
+        <button class="tvv-pill" onclick="this.parentNode.querySelectorAll('.tvv-pill').forEach(b=>b.classList.remove('active'));this.classList.add('active')">Ẩn TVV</button>
+        <button class="tvv-pill" onclick="this.parentNode.querySelectorAll('.tvv-pill').forEach(b=>b.classList.remove('active'));this.classList.add('active')">Seeding</button>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="filter-label" style="margin-bottom:5px">Kỳ demo</div>
+      <div style="font-size:12px;color:#64748b">01/01/2026 → 31/03/2026</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<main class="main">
+
+<!-- ────── L1: OVERVIEW ────── -->
+<section class="layer active" id="l1">
+  <div class="layer-header">
+    <div class="layer-title">L1 — Overview</div>
+    <div class="layer-sub">Pulse tổng quan · Q1/2026 · 3 nhóm Facebook · 12,847 bình luận được phân tích</div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Tổng bình luận</div>
+      <div class="kpi-value">12,847</div>
+      <div class="kpi-delta"><span class="up">↑ 1,204 so với kỳ trước</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Tích cực</div>
+      <div class="kpi-value">46%</div>
+      <div class="kpi-delta"><span class="up">↑ 8% so với kỳ trước</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Tiêu cực mạnh</div>
+      <div class="kpi-value">8%</div>
+      <div class="kpi-delta"><span class="bad-down">↓ 5% so với kỳ trước</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Crisis Alerts</div>
+      <div class="kpi-value">3</div>
+      <div class="kpi-delta"><span class="bad-down">↓ 4 so với kỳ trước</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="chart-title">Xu hướng cảm xúc theo tuần <span class="chart-sub">— Crisis tháng 2, phục hồi tháng 3 nhờ campaign</span></div>
+      <div id="c-sentiment" style="height:260px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Phân bổ ý định bình luận</div>
+      <div id="c-intent" style="height:260px"></div>
+    </div>
+  </div>
+
+  <div class="chart-card mb18">
+    <div class="chart-title">Phân bổ sentiment score <span class="chart-sub">— phân phối điểm từ -1.0 đến 1.0</span></div>
+    <div id="c-score-dist" style="height:160px"></div>
+  </div>
+</section>
+
+<!-- ────── L2: TOPICS & TRENDS ────── -->
+<section class="layer" id="l2">
+  <div class="layer-header">
+    <div class="layer-title">L2 — Topics & Trends</div>
+    <div class="layer-sub">Chủ đề nổi bật · emerging topics · threads được thảo luận nhiều nhất</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="chart-card mb18">
+      <div class="chart-title">Top 10 chủ đề <span class="chart-sub">— Q1/2026</span></div>
+      <div id="c-topics" style="height:300px"></div>
+    </div>
+    <div class="chart-card mb18">
+      <div class="chart-title">Emerging Topics <span class="chart-sub">— bubble: size = lượt nhắc, y = tăng trưởng %</span></div>
+      <div id="c-emerging-bubble" style="height:300px"></div>
+    </div>
+  </div>
+
+  <div class="table-card mb18">
+    <div class="table-head">
+      <div class="chart-title" style="margin:0">Emerging Topics — Chủ đề tăng trưởng đột biến</div>
+    </div>
+    <table>
+      <thead><tr><th>Chủ đề</th><th style="text-align:right">Kỳ này</th><th style="text-align:right">Kỳ trước</th><th>Tăng trưởng</th><th>Nhóm xuất hiện nhiều</th></tr></thead>
+      <tbody id="emerging-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="table-card">
+    <div class="table-head">
+      <div class="chart-title" style="margin:0">Thread Analysis — Top threads theo số reply</div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Tóm tắt bài gốc</th><th style="text-align:center">Replies</th><th>Phản ứng cộng đồng</th><th>Nhóm</th></tr></thead>
+      <tbody id="thread-tbody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ────── L3: BRAND INTELLIGENCE ────── -->
+<section class="layer" id="l3">
+  <div class="layer-header">
+    <div class="layer-title">L3 — Brand Intelligence</div>
+    <div class="layer-sub">Share of Voice · Positive % · Radar so sánh đa chiều · Q1/2026</div>
+  </div>
+
+  <div class="grid-eq mb18">
+    <div class="chart-card">
+      <div class="chart-title">Share of Voice</div>
+      <div id="c-sov" style="height:280px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">% Positive by Brand</div>
+      <div id="c-brand-pos" style="height:280px"></div>
+    </div>
+  </div>
+
+  <div class="chart-card mb18">
+    <div class="chart-title">Radar so sánh brand <span class="chart-sub">— SoV · Positive · Crisis-free · Engagement · Trend</span></div>
+    <div id="c-brand-radar" style="height:320px"></div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-head"><div class="chart-title" style="margin:0">Brand Detail</div></div>
+    <table>
+      <thead><tr><th>Brand</th><th style="text-align:right">Mentions</th><th style="text-align:right">SoV</th><th style="text-align:right">Positive</th><th>Sentiment breakdown</th><th>Trend</th></tr></thead>
+      <tbody id="brand-tbody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ────── L4: DEEP INSIGHT ────── -->
+<section class="layer" id="l4">
+  <div class="layer-header">
+    <div class="layer-title">L4 — Deep Insight</div>
+    <div class="layer-sub">Pain point clustering · xu hướng theo tháng · comment browser với is_advisor & is_seeding</div>
+  </div>
+
+  <div class="grid-2 mb18">
+    <div class="chart-card">
+      <div class="chart-title">Pain Cluster Trend <span class="chart-sub">— top 5 nhóm · theo tháng</span></div>
+      <div id="c-pain-trend" style="height:280px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Phân bổ Pain Clusters</div>
+      <div id="c-pain-dist" style="height:280px"></div>
+    </div>
+  </div>
+
+  <div class="chart-card mb18">
+    <div class="chart-title">Comment Browser <span class="chart-sub">— badge TVV & Seeding từ AI classifier</span></div>
+    <div class="comment-grid" id="comment-grid"></div>
+  </div>
+</section>
+
+<!-- ────── L5: CAMPAIGN IMPACT ────── -->
+<section class="layer" id="l5">
+  <div class="layer-header">
+    <div class="layer-title">L5 — Campaign Impact <span style="font-size:12px;background:#854d0e;color:#fef3c7;padding:2px 8px;border-radius:5px;vertical-align:middle;margin-left:8px">MỚI</span></div>
+    <div class="layer-sub">Đo tác động campaign lên sentiment · share of voice · topic shift · so sánh trước/sau</div>
+  </div>
+
+  <div class="campaign-cards" id="campaign-cards"></div>
+
+  <div class="chart-card mb18">
+    <div class="chart-title">Sentiment timeline với campaign overlay <span class="chart-sub">— vùng màu = thời gian campaign chạy</span></div>
+    <div id="c-campaign-timeline" style="height:300px"></div>
+  </div>
+
+  <div class="grid-eq mb18">
+    <div class="chart-card">
+      <div class="chart-title">So sánh Trước / Sau campaign <span class="chart-sub">— Prudential "Bảo hiểm minh bạch"</span></div>
+      <div id="c-prepost" style="height:260px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Topic shift trong campaign <span class="chart-sub">— chủ đề tăng/giảm nhiều nhất</span></div>
+      <div id="c-topic-shift" style="height:260px"></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-head"><div class="chart-title" style="margin:0">Campaign Registry — Tất cả campaigns đã tracking</div></div>
+    <table>
+      <thead><tr><th>Campaign</th><th>Brand</th><th>Thời gian</th><th style="text-align:right">Sentiment lift</th><th style="text-align:right">Mention lift</th><th style="text-align:right">SoV lift</th><th>Hiệu quả</th></tr></thead>
+      <tbody id="campaign-tbody"></tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════════════════════
+
+const WEEKS = ['T1W1','T1W2','T1W3','T1W4','T1W5','T2W1','T2W2','T2W3','T2W4','T3W1','T3W2','T3W3','T3W4'];
+// Story: Jan baseline → Feb crisis (Manulife rejection viral) → Mar recovery (Prudential campaign)
+const SENTIMENT_TREND = {
+  tich_cuc: [45,43,41,39,36,30,28,31,34,38,42,45,48],
+  tieu_cuc: [22,24,26,30,33,38,40,38,35,30,27,24,22],
+  trung_lap:[33,33,33,31,31,32,32,31,31,32,31,31,30],
+};
+
+const INTENT_DATA = [
+  {name:'Chia sẻ', val:3421}, {name:'Tư vấn', val:2876}, {name:'Hỏi giá', val:2134},
+  {name:'Khiếu nại', val:1987}, {name:'So sánh', val:1245}, {name:'Khen', val:876}, {name:'Spam', val:308},
+];
+
+const SCORE_DIST = {
+  labels:['-1.0','-0.8','-0.6','-0.4','-0.2','0','0.2','0.4','0.6','0.8','1.0'],
+  vals:  [180,   420,   780,   1240,  1560,  1890, 1720, 1340, 980,  560,  177],
+};
+
+const TOPICS = [
+  {name:'bảo hiểm sức khỏe', cnt:2891}, {name:'bồi thường', cnt:2234},
+  {name:'phí bảo hiểm', cnt:1876}, {name:'tư vấn viên', cnt:1543},
+  {name:'manulife', cnt:1389}, {name:'prudential', cnt:1134},
+  {name:'bảo hiểm nhân thọ', cnt:987}, {name:'generali', cnt:867},
+  {name:'bảo hiểm thai sản', cnt:734}, {name:'hủy hợp đồng', cnt:589},
+];
+
+const EMERGING = [
+  {topic:'bảo hiểm ung thư',     cnt:145, prev:0,   pct:null, isNew:true,  group:'Hỏi review BH'},
+  {topic:'quyền lợi thai sản',   cnt:289, prev:74,  pct:291,  isNew:false, group:'BH sức khỏe VN'},
+  {topic:'app bảo hiểm',         cnt:267, prev:89,  pct:200,  isNew:false, group:'Hỏi review BH'},
+  {topic:'hoàn phí hợp đồng',    cnt:312, prev:134, pct:133,  isNew:false, group:'Hỏi review BH'},
+  {topic:'điều khoản loại trừ',  cnt:398, prev:187, pct:113,  isNew:false, group:'BH sức khỏe VN'},
+  {topic:'bảo hiểm ung thư nhi', cnt:67,  prev:0,   pct:null, isNew:true,  group:'BH gia đình'},
+];
+
+const THREADS = [
+  {n:1, summary:'Manulife từ chối bồi thường tai nạn với lý do "bệnh có sẵn" — hàng trăm người kể trải nghiệm tương tự', replies:312, pos:12,neu:18,neg:70, group:'Hỏi review BH'},
+  {n:2, summary:'Prudential bồi thường trong 5 ngày làm việc — chia sẻ kinh nghiệm claim thành công', replies:189, pos:78,neu:15,neg:7, group:'Hỏi review BH'},
+  {n:3, summary:'Phí bảo hiểm Manulife tăng 35% sau năm thứ 5 — không được thông báo trước', replies:156, pos:8,neu:14,neg:78, group:'BH sức khỏe VN'},
+  {n:4, summary:'So sánh chi tiết: AIA vs Prudential vs Bảo Việt cho gia đình 4 người', replies:134, pos:45,neu:42,neg:13, group:'Hỏi review BH'},
+  {n:5, summary:'Generali bồi thường chậm 3 tháng, CSKH liên tục từ chối kết nối', replies:98, pos:11,neu:22,neg:67, group:'BH sức khỏe VN'},
+];
+
+const BRANDS = [
+  {name:'Manulife',   mentions:3589, pos:34, neu:31, neg:35, color:'#2563eb'},
+  {name:'Prudential', mentions:3078, pos:52, neu:30, neg:18, color:'#16a34a'},
+  {name:'Bảo Việt',   mentions:2312, pos:58, neu:27, neg:15, color:'#d97706'},
+  {name:'AIA',        mentions:2056, pos:49, neu:32, neg:19, color:'#9333ea'},
+  {name:'Generali',   mentions:1812, pos:55, neu:28, neg:17, color:'#0891b2'},
+];
+
+const PAIN_CLUSTERS = [
+  {name:'Từ chối bồi thường',     cnt:845, color:'#dc2626'},
+  {name:'Quy trình phức tạp',     cnt:634, color:'#d97706'},
+  {name:'Phí tăng đột ngột',      cnt:567, color:'#9333ea'},
+  {name:'Tư vấn sai thông tin',   cnt:412, color:'#2563eb'},
+  {name:'Khó liên lạc CSKH',      cnt:334, color:'#0891b2'},
+  {name:'Điều khoản không rõ',    cnt:289, color:'#16a34a'},
+];
+
+const PAIN_TREND = {
+  months: ['Tháng 1','Tháng 2','Tháng 3'],
+  clusters: {
+    'Từ chối bồi thường':   [210, 398, 237],
+    'Quy trình phức tạp':   [189, 267, 178],
+    'Phí tăng đột ngột':    [167, 234, 166],
+    'Tư vấn sai thông tin': [145, 178, 89],
+    'Khó liên lạc CSKH':    [112, 145, 77],
+  }
+};
+
+const COMMENTS = [
+  {date:'12/02/26', text:'Mình mua Manulife FlexiCare từ 2022, vừa bị từ chối bồi thường viện phí với lý do "bệnh có sẵn" dù không hề có tiền sử. Đã gửi khiếu nại 3 lần vẫn không giải quyết.', intent:'Khiếu nại', sent:'neg', advisor:false, seeding:false, summary:'Khách hàng khiếu nại Manulife từ chối bồi thường'},
+  {date:'05/03/26', text:'Prudential bồi thường nhanh lắm bạn ơi, mình claim xong trong 1 tuần. Nhân viên nhiệt tình, app dễ dùng, giấy tờ đơn giản. Highly recommend!', intent:'Khen', sent:'pos', advisor:false, seeding:false, summary:'Khen Prudential bồi thường nhanh, CSKH tốt'},
+  {date:'28/01/26', text:'Bạn tham khảo gói An10 của Generali nhé. Mua độc lập cho bé, phí 10tr/năm cho bé 0-5 tuổi. Bạn IB mình tư vấn cụ thể nha. Hảo Hoàng Generali 0765271131 #gda22', intent:'Tư vấn', sent:'neu', advisor:true, seeding:false, summary:'TVV Generali chào mời sản phẩm cho trẻ em'},
+  {date:'15/03/26', text:'AIA vs Prudential thì cái nào BV nội trú tốt hơn? Gia đình mình 2 người lớn 2 bé, dự kiến mua khoảng 40-50tr/năm, ai có kinh nghiệm thực tế chỉ mình với!', intent:'So sánh', sent:'neu', advisor:false, seeding:false, summary:'Hỏi so sánh AIA vs Prudential cho gia đình'},
+  {date:'08/03/26', text:'Bảo Việt sản phẩm tốt lắm mọi người ơi, an tâm lắm, uy tín hàng đầu, bảo vệ toàn diện. Inbox mình để biết thêm nhé!', intent:'Khen', sent:'pos', advisor:false, seeding:true, summary:'Comment khen Bảo Việt chung chung, không có trải nghiệm cụ thể'},
+  {date:'19/02/26', text:'Phí Manulife của mình tăng 35% sau năm thứ 5 mà không có thông báo trước. Gọi CSKH 3 lần, lần nào cũng chờ 45 phút rồi bị cúp máy. Kinh khủng!', intent:'Khiếu nại', sent:'neg', advisor:false, seeding:false, summary:'Phàn nàn phí tăng đột ngột và CSKH Manulife kém'},
+];
+
+const CAMPAIGNS = [
+  {
+    brand:'Prudential', name:'Bảo hiểm minh bạch', start:'01/03/26', end:'31/03/26',
+    sentLift:'+18pp', mentionLift:'+52%', sovLift:'+6pp',
+    prePos:34, postPos:52, preMentions:1247, postMentions:1891,
+    score:92, channels:['Facebook','Zalo','Influencer'],
+    topicGain: [{t:'bồi thường nhanh',pct:340}, {t:'prudential minh bạch',pct:null}, {t:'claim thành công',pct:220}]
+  },
+  {
+    brand:'Bảo Việt', name:'An Tâm Sức Khỏe', start:'01/02/26', end:'28/02/26',
+    sentLift:'+15pp', mentionLift:'+30%', sovLift:'+3pp',
+    prePos:43, postPos:58, preMentions:876, postMentions:1134,
+    score:78, channels:['Facebook','TikTok'],
+    topicGain: [{t:'bảo hiểm ung thư',pct:null}, {t:'bảo việt sức khỏe',pct:180}]
+  },
+  {
+    brand:'Generali', name:'Generali Gen X', start:'15/01/26', end:'15/02/26',
+    sentLift:'+8pp', mentionLift:'+34%', sovLift:'+2pp',
+    prePos:47, postPos:55, preMentions:621, postMentions:834,
+    score:65, channels:['Facebook'],
+    topicGain: [{t:'generali gen x',pct:null}, {t:'bảo hiểm cho con',pct:95}]
+  },
+];
+
+// Campaign timeline — weekly positive % with campaign markers
+const TIMELINE_WEEKS = ['01/01','08/01','15/01','22/01','29/01','05/02','12/02','19/02','26/02','05/03','12/03','19/03','26/03'];
+const TIMELINE_POS   = [45,43,41,39,36,30,28,31,34,38,42,45,48];
+
+// ═══════════════════════════════════════════════════
+// CHART INIT PER LAYER
+// ═══════════════════════════════════════════════════
+const C = {}; // echarts instances
+
+function initL1() {
+  // Sentiment trend
+  C.sentiment = echarts.init(document.getElementById('c-sentiment'));
+  C.sentiment.setOption({
+    tooltip:{trigger:'axis', axisPointer:{type:'cross'}},
+    legend:{bottom:0, icon:'roundRect', itemWidth:14, itemHeight:8, textStyle:{fontSize:12}},
+    grid:{left:40,right:20,top:20,bottom:50},
+    xAxis:{type:'category', data:WEEKS, axisLine:{lineStyle:{color:'#e2e8f0'}}, axisTick:{show:false}, axisLabel:{fontSize:11,color:'#64748b'}},
+    yAxis:{type:'value', splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{fontSize:11,color:'#64748b'}, max:100},
+    series:[
+      {name:'Tích cực', type:'line', data:SENTIMENT_TREND.tich_cuc, smooth:true, symbol:'circle', symbolSize:5,
+       lineStyle:{width:2,color:'#16a34a'}, areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(22,163,74,.15)'},{offset:1,color:'rgba(22,163,74,0)'}]}},
+       markArea:{silent:true,itemStyle:{color:'rgba(37,99,235,.06)'},data:[[{name:'Campaign\nPrudential',xAxis:'T3W1'},{xAxis:'T3W4'}]]}},
+      {name:'Tiêu cực', type:'line', data:SENTIMENT_TREND.tieu_cuc, smooth:true, symbol:'circle', symbolSize:5,
+       lineStyle:{width:2,color:'#dc2626'}, areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(220,38,38,.12)'},{offset:1,color:'rgba(220,38,38,0)'}]}}},
+      {name:'Trung lập', type:'line', data:SENTIMENT_TREND.trung_lap, smooth:true, symbol:'none',
+       lineStyle:{width:1.5, color:'#94a3b8', type:'dashed'}, areaStyle:{opacity:0}},
+    ]
+  });
+
+  // Intent donut
+  C.intent = echarts.init(document.getElementById('c-intent'));
+  const COLORS=['#2563eb','#d97706','#9333ea','#dc2626','#0891b2','#16a34a','#94a3b8'];
+  C.intent.setOption({
+    tooltip:{trigger:'item', formatter:'{b}: {c} ({d}%)'},
+    legend:{orient:'vertical', right:10, top:'middle', itemWidth:10, itemHeight:10, textStyle:{fontSize:11}},
+    series:[{type:'pie', radius:['42%','72%'], center:['40%','50%'],
+      data: INTENT_DATA.map((d,i)=>({name:d.name,value:d.val,itemStyle:{color:COLORS[i]}})),
+      label:{show:false}, emphasis:{itemStyle:{shadowBlur:8,shadowColor:'rgba(0,0,0,.15)'}},
+      itemStyle:{borderRadius:4, borderWidth:2, borderColor:'#fff'}}]
+  });
+
+  // Score distribution
+  C.scoreDist = echarts.init(document.getElementById('c-score-dist'));
+  C.scoreDist.setOption({
+    tooltip:{trigger:'axis'},
+    grid:{left:40,right:20,top:10,bottom:36},
+    xAxis:{type:'category', data:SCORE_DIST.labels, axisLabel:{fontSize:10,color:'#64748b'}, axisTick:{show:false}, axisLine:{lineStyle:{color:'#e2e8f0'}}},
+    yAxis:{type:'value', splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{fontSize:10,color:'#64748b'}},
+    series:[{type:'bar', data: SCORE_DIST.vals.map((v,i)=>({value:v,itemStyle:{color:i<4?'#fca5a5':i<6?'#94a3b8':'#86efac',borderRadius:[3,3,0,0]}})), barMaxWidth:28}]
+  });
+}
+
+function initL2() {
+  // Top topics horizontal bar
+  C.topics = echarts.init(document.getElementById('c-topics'));
+  const tSorted = [...TOPICS].sort((a,b)=>a.cnt-b.cnt);
+  C.topics.setOption({
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}},
+    grid:{left:140,right:60,top:10,bottom:24},
+    xAxis:{type:'value', splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{fontSize:11,color:'#64748b'}},
+    yAxis:{type:'category', data:tSorted.map(d=>d.name), axisLabel:{fontSize:12,color:'#374151'}, axisTick:{show:false}, axisLine:{show:false}},
+    series:[{type:'bar', data:tSorted.map((d,i)=>({value:d.cnt,itemStyle:{color:i>=8?'#2563eb':'#93c5fd',borderRadius:[0,4,4,0]}})), barMaxWidth:18, label:{show:true,position:'right',fontSize:11,color:'#64748b'}}]
+  });
+
+  // Emerging bubble
+  C.emergBubble = echarts.init(document.getElementById('c-emerging-bubble'));
+  const bData = EMERGING.filter(d=>!d.isNew).map(d=>({name:d.topic, value:[d.cnt, d.pct, d.cnt]}));
+  const bNew  = EMERGING.filter(d=>d.isNew).map(d=>({name:d.topic, value:[d.cnt, 320, d.cnt]}));
+  C.emergBubble.setOption({
+    tooltip:{trigger:'item', formatter:p=>`<b>${p.data.name}</b><br>Mentions: ${p.data.value[0]}<br>Tăng trưởng: ${p.data.value[1]===320?'MỚI':p.data.value[1]+'%'}`},
+    grid:{left:50,right:20,top:20,bottom:40},
+    xAxis:{type:'value',name:'Lượt nhắc',nameTextStyle:{fontSize:11},splitLine:{lineStyle:{color:'#f1f5f9'}},axisLabel:{fontSize:11,color:'#64748b'}},
+    yAxis:{type:'value',name:'Tăng trưởng %',nameTextStyle:{fontSize:11},splitLine:{lineStyle:{color:'#f1f5f9'}},axisLabel:{fontSize:11,color:'#64748b'}},
+    series:[
+      {type:'scatter', data:bData, symbolSize:d=>Math.sqrt(d[2])*3.5, itemStyle:{color:'#3b82f6', opacity:.7}, label:{show:true,formatter:p=>p.data.name,fontSize:10,position:'top'}},
+      {type:'scatter', data:bNew,  symbolSize:d=>Math.sqrt(d[2])*4,   itemStyle:{color:'#f97316', opacity:.8}, label:{show:true,formatter:p=>p.data.name+' 🆕',fontSize:10,position:'top'}},
+    ]
+  });
+
+  // Emerging table
+  document.getElementById('emerging-tbody').innerHTML = EMERGING.map(d=>`
+    <tr>
+      <td style="font-size:13px;font-weight:500">${d.topic}</td>
+      <td style="text-align:right;font-weight:700;font-size:14px">${d.cnt}</td>
+      <td style="text-align:right;color:#94a3b8">${d.isNew?'—':d.prev}</td>
+      <td>${d.isNew?'<span class="badge b-new">MỚI</span>':`<span class="badge b-growth">+${d.pct}%</span>`}</td>
+      <td style="color:#64748b;font-size:12px">${d.group}</td>
+    </tr>`).join('');
+
+  // Thread table
+  document.getElementById('thread-tbody').innerHTML = THREADS.map(t=>`
+    <tr>
+      <td style="text-align:center;color:#94a3b8;font-size:12px">${t.n}</td>
+      <td style="max-width:380px;font-size:13px;line-height:1.5">${t.summary}</td>
+      <td style="text-align:center;font-size:20px;font-weight:800;color:#0f172a">${t.replies}</td>
+      <td style="min-width:200px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="sent-bar" style="width:90px">
+            <span style="width:${t.pos}%;background:#16a34a"></span>
+            <span style="width:${t.neu}%;background:#94a3b8"></span>
+            <span style="width:${t.neg}%;background:#dc2626"></span>
+          </div>
+          <span style="font-size:10px;color:#16a34a">${t.pos}%</span>
+          <span style="font-size:10px;color:#94a3b8">${t.neu}%</span>
+          <span style="font-size:10px;color:#dc2626">${t.neg}%</span>
+        </div>
+      </td>
+      <td style="font-size:11px;color:#64748b">${t.group}</td>
+    </tr>`).join('');
+}
+
+function initL3() {
+  const total = BRANDS.reduce((s,b)=>s+b.mentions,0);
+  const bColors = BRANDS.map(b=>b.color);
+
+  // SoV donut
+  C.sov = echarts.init(document.getElementById('c-sov'));
+  C.sov.setOption({
+    tooltip:{trigger:'item', formatter:'{b}: {d}%'},
+    legend:{bottom:0, icon:'circle', itemWidth:8, textStyle:{fontSize:11}},
+    series:[{type:'pie', radius:['40%','70%'],
+      data:BRANDS.map(b=>({name:b.name, value:+(b.mentions/total*100).toFixed(1), itemStyle:{color:b.color}})),
+      label:{fontSize:11, formatter:'{b}: {d}%'}, itemStyle:{borderRadius:4,borderWidth:2,borderColor:'#fff'},
+      emphasis:{itemStyle:{shadowBlur:8,shadowColor:'rgba(0,0,0,.15)'}}}]
+  });
+
+  // Brand positive bar
+  C.brandPos = echarts.init(document.getElementById('c-brand-pos'));
+  C.brandPos.setOption({
+    tooltip:{trigger:'axis', formatter:p=>`${p[0].name}: ${p[0].value}% tích cực`},
+    grid:{left:80,right:60,top:20,bottom:20},
+    xAxis:{type:'value', max:100, splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{formatter:v=>v+'%',fontSize:11,color:'#64748b'}},
+    yAxis:{type:'category', data:BRANDS.map(b=>b.name), axisLabel:{fontSize:12,color:'#374151'}, axisTick:{show:false}, axisLine:{show:false}},
+    series:[{type:'bar', data:BRANDS.map(b=>({value:b.pos, itemStyle:{color:b.color, borderRadius:[0,4,4,0]}})), barMaxWidth:22,
+      label:{show:true, position:'right', formatter:v=>v.value+'%', fontSize:11, color:'#374151'}}]
+  });
+
+  // Radar
+  C.radar = echarts.init(document.getElementById('c-brand-radar'));
+  C.radar.setOption({
+    tooltip:{},
+    legend:{bottom:0, icon:'circle', itemWidth:8, textStyle:{fontSize:11}},
+    radar:{
+      indicator:[
+        {name:'Share of Voice', max:35}, {name:'% Positive', max:70},
+        {name:'Crisis-free %', max:100}, {name:'Engagement', max:100}, {name:'Trend ↑', max:100}
+      ],
+      shape:'polygon', splitNumber:4,
+      axisName:{color:'#374151',fontSize:11},
+      splitLine:{lineStyle:{color:'#e2e8f0'}},
+      splitArea:{areaStyle:{color:['rgba(241,245,249,.6)','rgba(255,255,255,.6)']}},
+    },
+    series:[{type:'radar',
+      data:[
+        {name:'Manulife',   value:[28,34,65,72,30], lineStyle:{color:BRANDS[0].color}, areaStyle:{opacity:.08}, itemStyle:{color:BRANDS[0].color}},
+        {name:'Prudential', value:[24,52,82,85,88], lineStyle:{color:BRANDS[1].color}, areaStyle:{opacity:.08}, itemStyle:{color:BRANDS[1].color}},
+        {name:'Bảo Việt',   value:[18,58,85,68,75], lineStyle:{color:BRANDS[2].color}, areaStyle:{opacity:.08}, itemStyle:{color:BRANDS[2].color}},
+        {name:'AIA',        value:[16,49,81,74,65], lineStyle:{color:BRANDS[3].color}, areaStyle:{opacity:.08}, itemStyle:{color:BRANDS[3].color}},
+        {name:'Generali',   value:[14,55,83,62,58], lineStyle:{color:BRANDS[4].color}, areaStyle:{opacity:.08}, itemStyle:{color:BRANDS[4].color}},
+      ]
+    }]
+  });
+
+  // Brand table
+  document.getElementById('brand-tbody').innerHTML = BRANDS.map(b=>{
+    const sov = (b.mentions/total*100).toFixed(1);
+    const trend = b.name==='Prudential'?'<span style="color:#16a34a;font-size:13px">↑↑</span>':b.name==='Manulife'?'<span style="color:#dc2626;font-size:13px">↓</span>':'<span style="color:#94a3b8;font-size:13px">→</span>';
+    return `<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${b.color};margin-right:7px"></span><b>${b.name}</b></td>
+      <td style="text-align:right;font-weight:700">${b.mentions.toLocaleString('vi-VN')}</td>
+      <td style="text-align:right;color:#2563eb;font-weight:600">${sov}%</td>
+      <td style="text-align:right;color:#16a34a;font-weight:600">${b.pos}%</td>
+      <td style="min-width:180px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="sent-bar" style="width:100px">
+            <span style="width:${b.pos}%;background:#16a34a"></span>
+            <span style="width:${b.neu}%;background:#94a3b8"></span>
+            <span style="width:${b.neg}%;background:#dc2626"></span>
+          </div>
+          <span style="font-size:10px;color:#64748b">${b.neg}% neg</span>
+        </div>
+      </td>
+      <td style="text-align:center">${trend}</td>
+    </tr>`;
+  }).join('');
+}
+
+function initL4() {
+  const clColors = PAIN_CLUSTERS.map(c=>c.color);
+
+  // Pain trend (stacked line)
+  C.painTrend = echarts.init(document.getElementById('c-pain-trend'));
+  C.painTrend.setOption({
+    tooltip:{trigger:'axis', axisPointer:{type:'cross'}},
+    legend:{bottom:0, icon:'roundRect', itemWidth:10, itemHeight:6, textStyle:{fontSize:11}},
+    grid:{left:40,right:20,top:20,bottom:60},
+    xAxis:{type:'category', data:PAIN_TREND.months, axisLabel:{fontSize:12,color:'#374151'}, axisTick:{show:false}, axisLine:{lineStyle:{color:'#e2e8f0'}}},
+    yAxis:{type:'value', splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{fontSize:11,color:'#64748b'}},
+    series: Object.entries(PAIN_TREND.clusters).map(([name,data],i)=>({
+      name, type:'line', data,
+      smooth:true, symbol:'circle', symbolSize:6,
+      lineStyle:{width:2, color:clColors[i]},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:clColors[i]+'30'},{offset:1,color:clColors[i]+'05'}]}},
+    }))
+  });
+
+  // Pain distribution bar
+  C.painDist = echarts.init(document.getElementById('c-pain-dist'));
+  const sorted = [...PAIN_CLUSTERS].sort((a,b)=>a.cnt-b.cnt);
+  C.painDist.setOption({
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}},
+    grid:{left:160,right:60,top:10,bottom:20},
+    xAxis:{type:'value', splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{fontSize:11,color:'#64748b'}},
+    yAxis:{type:'category', data:sorted.map(d=>d.name), axisLabel:{fontSize:12,color:'#374151'}, axisTick:{show:false}, axisLine:{show:false}},
+    series:[{type:'bar', data:sorted.map(d=>({value:d.cnt,itemStyle:{color:d.color,borderRadius:[0,4,4,0]}})), barMaxWidth:20,
+      label:{show:true, position:'right', fontSize:11, color:'#64748b'}}]
+  });
+
+  // Comment cards
+  const SENT_CLS = {pos:'pos', neg:'neg', neu:'neu'};
+  const SENT_LBL = {pos:'Tích cực', neg:'Tiêu cực', neu:'Trung lập'};
+  document.getElementById('comment-grid').innerHTML = COMMENTS.map(c=>`
+    <div class="comment-card">
+      <div class="comment-meta">
+        <span style="font-size:11px;color:#94a3b8">${c.date}</span>
+        ${c.advisor?'<span class="badge b-tvv">TVV</span>':''}
+        ${c.seeding?'<span class="badge b-seeding">SEEDING</span>':''}
+      </div>
+      <div class="comment-text">${c.text.length>160?c.text.slice(0,160)+'…':c.text}</div>
+      <div class="comment-footer">
+        <span class="comment-tag ${SENT_CLS[c.sent]}">${SENT_LBL[c.sent]}</span>
+        <span class="comment-tag">${c.intent}</span>
+        <span style="font-size:11px;color:#94a3b8;margin-left:auto">${c.summary.slice(0,45)}…</span>
+      </div>
+    </div>`).join('');
+}
+
+function initL5() {
+  // Campaign cards
+  document.getElementById('campaign-cards').innerHTML = CAMPAIGNS.map(cp=>`
+    <div class="campaign-card">
+      <div class="campaign-brand">${cp.brand}</div>
+      <div class="campaign-name">${cp.name}</div>
+      <div class="campaign-stat"><span class="campaign-stat-label">Thời gian</span><span class="campaign-stat-val" style="font-size:12px">${cp.start} → ${cp.end}</span></div>
+      <div class="campaign-stat"><span class="campaign-stat-label">Sentiment lift</span><span class="campaign-stat-val lift-pos">${cp.sentLift}</span></div>
+      <div class="campaign-stat"><span class="campaign-stat-label">Mention lift</span><span class="campaign-stat-val lift-pos">${cp.mentionLift}</span></div>
+      <div class="campaign-stat"><span class="campaign-stat-label">Hiệu quả score</span><span class="campaign-stat-val" style="color:${cp.score>=80?'#16a34a':cp.score>=60?'#d97706':'#dc2626'}">${cp.score}/100</span></div>
+    </div>`).join('');
+
+  // Campaign timeline with markArea
+  C.timeline = echarts.init(document.getElementById('c-campaign-timeline'));
+  C.timeline.setOption({
+    tooltip:{trigger:'axis', axisPointer:{type:'cross'}, formatter:p=>`<b>${p[0].axisValue}</b><br>Positive: ${p[0].value}%`},
+    grid:{left:50,right:20,top:30,bottom:40},
+    xAxis:{type:'category', data:TIMELINE_WEEKS, axisLabel:{fontSize:11,color:'#64748b'}, axisTick:{show:false}, axisLine:{lineStyle:{color:'#e2e8f0'}}},
+    yAxis:{type:'value', min:20, max:60, splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{fontSize:11,color:'#64748b',formatter:v=>v+'%'}},
+    series:[{
+      name:'% Tích cực', type:'line',
+      data: TIMELINE_POS,
+      smooth:true, symbol:'circle', symbolSize:6,
+      lineStyle:{width:2.5, color:'#16a34a'},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(22,163,74,.18)'},{offset:1,color:'rgba(22,163,74,0)'}]}},
+      markArea:{silent:false, data:[
+        [{name:'Generali Gen X',  xAxis:'15/01',itemStyle:{color:'rgba(8,145,178,.08)',borderWidth:1,borderColor:'rgba(8,145,178,.3)'}}, {xAxis:'12/02'}],
+        [{name:'An Tâm Sức Khỏe', xAxis:'05/02',itemStyle:{color:'rgba(217,119,6,.08)',borderWidth:1,borderColor:'rgba(217,119,6,.3)'}}, {xAxis:'26/02'}],
+        [{name:'Bảo hiểm minh bạch',xAxis:'05/03',itemStyle:{color:'rgba(22,163,74,.1)',borderWidth:1,borderColor:'rgba(22,163,74,.4)'}}, {xAxis:'26/03'}],
+      ]},
+      markPoint:{data:[
+        {coord:['05/02',30], name:'Crisis đỉnh', value:'⚠ Crisis', symbolSize:50, label:{fontSize:10}, itemStyle:{color:'#dc2626'}},
+        {coord:['05/03',38], name:'Campaign bắt đầu', value:'🚀 Campaign', symbolSize:50, label:{fontSize:10}, itemStyle:{color:'#16a34a'}},
+      ]}
+    }]
+  });
+
+  // Pre / Post comparison
+  const cp = CAMPAIGNS[0];
+  C.prepost = echarts.init(document.getElementById('c-prepost'));
+  C.prepost.setOption({
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}},
+    legend:{bottom:0, icon:'roundRect', itemWidth:12, textStyle:{fontSize:11}},
+    grid:{left:60,right:20,top:20,bottom:50},
+    xAxis:{type:'category', data:['Trước campaign','Sau campaign'], axisLabel:{fontSize:12}, axisTick:{show:false}, axisLine:{lineStyle:{color:'#e2e8f0'}}},
+    yAxis:[
+      {type:'value', name:'% Positive', max:70, splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{formatter:v=>v+'%',fontSize:11,color:'#64748b'}},
+      {type:'value', name:'Mentions',   splitLine:{show:false}, axisLabel:{fontSize:11,color:'#64748b'}},
+    ],
+    series:[
+      {name:'% Positive', type:'bar', yAxisIndex:0, data:[{value:cp.prePos,itemStyle:{color:'#93c5fd',borderRadius:[4,4,0,0]}},{value:cp.postPos,itemStyle:{color:'#2563eb',borderRadius:[4,4,0,0]}}], barMaxWidth:48, label:{show:true,position:'top',formatter:v=>v.value+'%',fontSize:12}},
+      {name:'Mentions',   type:'line', yAxisIndex:1, data:[cp.preMentions, cp.postMentions], smooth:true, symbol:'circle', symbolSize:7, lineStyle:{color:'#16a34a',width:2}, itemStyle:{color:'#16a34a'}},
+    ]
+  });
+
+  // Topic shift
+  const topicShiftLabels = ['bồi thường nhanh','claim thành công','prudential minh bạch','phàn nàn chậm trễ','tư vấn lừa dối'];
+  const topicShiftVals   = [340, 220, null, -45, -68];
+  C.topicShift = echarts.init(document.getElementById('c-topic-shift'));
+  C.topicShift.setOption({
+    tooltip:{trigger:'axis', axisPointer:{type:'shadow'}, formatter:p=>`${p[0].name}: ${p[0].value===null?'MỚI':p[0].value+'%'}`},
+    grid:{left:150,right:60,top:10,bottom:20},
+    xAxis:{type:'value', splitLine:{lineStyle:{color:'#f1f5f9'}}, axisLabel:{fontSize:11,color:'#64748b',formatter:v=>v+'%'}},
+    yAxis:{type:'category', data:topicShiftLabels, axisLabel:{fontSize:11,color:'#374151'}, axisTick:{show:false}, axisLine:{show:false}},
+    series:[{type:'bar', barMaxWidth:18, data:topicShiftVals.map(v=>({value:v===null?400:v, label:{formatter:v===null?'MỚI':v+'%'}, itemStyle:{color:v===null?'#f97316':v>0?'#16a34a':'#dc2626', borderRadius:v===null||v>0?[0,4,4,0]:[4,0,0,4]}})),
+      label:{show:true, position:'right', fontSize:11}}]
+  });
+
+  // Campaign table
+  document.getElementById('campaign-tbody').innerHTML = CAMPAIGNS.map(cp=>`
+    <tr>
+      <td style="font-weight:600">${cp.name}</td>
+      <td><span style="font-size:13px;color:#374151">${cp.brand}</span></td>
+      <td style="font-size:12px;color:#64748b;white-space:nowrap">${cp.start} → ${cp.end}</td>
+      <td style="text-align:right;font-weight:700;color:#16a34a">${cp.sentLift}</td>
+      <td style="text-align:right;font-weight:700;color:#16a34a">${cp.mentionLift}</td>
+      <td style="text-align:right;font-weight:700;color:#2563eb">${cp.sovLift}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:${cp.score}px;height:6px;background:${cp.score>=80?'#16a34a':cp.score>=60?'#d97706':'#dc2626'};border-radius:3px;max-width:100px"></div>
+          <span style="font-size:12px;font-weight:700;color:${cp.score>=80?'#16a34a':cp.score>=60?'#d97706':'#dc2626'}">${cp.score}</span>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════
+const initFns = {l1:initL1, l2:initL2, l3:initL3, l4:initL4, l5:initL5};
+const initialized = {};
+
+function showLayer(id, navEl) {
+  document.querySelectorAll('.layer').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(navEl) navEl.classList.add('active');
+
+  if(!initialized[id]) {
+    initFns[id]();
+    initialized[id] = true;
+  }
+  // Resize all charts in this layer after show
+  setTimeout(()=>{ Object.values(C).forEach(c=>{ try{ c.resize(); }catch(e){} }); }, 50);
+}
+
+// Resize all on window resize
+window.addEventListener('resize', ()=>{ Object.values(C).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
+
+// Boot
+showLayer('l1', document.querySelector('.nav-item'));
+</script>
+</body>
+</html>
